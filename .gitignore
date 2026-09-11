@@ -5,14 +5,15 @@
 *.so
 *.dylib
 
-
 *.test
 
 *.out
-
 
 go.work
 go.work.sum
 
 .env
-
+env/.env
+docker/.volumes/
+/docs/
+.volumes
