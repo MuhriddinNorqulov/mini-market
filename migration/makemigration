@@ -1,0 +1,30 @@
+ATLASGO := atlas
+MIGRATION_ENV ?= gorm-dev
+
+
+# makemigrations for development
+db-diff-dev:
+	@echo "💻 Generating migration files..."
+	@$(ATLASGO) migrate diff --env gorm-dev
+
+# makemigrations for production
+db-diff-prod:
+	@echo "💻 Generating migration files..."
+	@$(ATLASGO) migrate diff --env gorm-prod
+
+
+def-db-hash:
+	@echo "If hash is not found, please run the following command:"
+	@$(ATLASGO) migrate hash --env gorm-dev
+
+
+migrate-hash:
+	@echo "If hash is not found, please run the following command:"
+	@$(ATLASGO) migrate hash --env gorm-dev
+
+
+# 🔹 1-holat: versiyalar tartibsiz, lekin conflict yo‘q
+migrate-reorder:
+	@echo "🔄 Running migrations in non-linear (out-of-order) mode..."
+	@$(ATLASGO) migrate apply --env $(MIGRATION_ENV) -u "$(DB_CONNECTION_URL)?sslmode=disable" --exec-order non-linear --revisions-schema public
+	@echo "✅ Non-linear migrations executed successfully\n"

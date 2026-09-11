@@ -1,0 +1,600 @@
+basePath: /api/
+definitions:
+  dto.AuthOutput:
+    properties:
+      access_token:
+        type: string
+    type: object
+  dto.CreateOrderInput:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.CreateOrderItemInput'
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  dto.CreateOrderItemInput:
+    properties:
+      product_id:
+        type: integer
+      quantity:
+        type: integer
+    required:
+    - product_id
+    - quantity
+    type: object
+  dto.CreateProductInput:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      price:
+        type: integer
+      stock_quantity:
+        minimum: 0
+        type: integer
+    required:
+    - name
+    - price
+    type: object
+  dto.LoginInput:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  dto.RegisterInput:
+    properties:
+      confirm_password:
+        type: string
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+      username:
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - confirm_password
+    - password
+    - username
+    type: object
+  entity.OrderEntity:
+    properties:
+      cancel_reason:
+        $ref: '#/definitions/enum.OrderCancelReason'
+      cancelled_at:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      idempotency_key:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/entity.OrderItemEntity'
+        type: array
+      status:
+        $ref: '#/definitions/enum.OrderStatus'
+      total_price:
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  entity.OrderItemEntity:
+    properties:
+      id:
+        type: integer
+      product_id:
+        type: integer
+      quantity:
+        type: integer
+      unit_price:
+        type: integer
+    type: object
+  entity.ProductEntity:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: integer
+      stock_quantity:
+        type: integer
+    type: object
+  enum.OrderCancelReason:
+    enum:
+    - user_requested
+    - timeout
+    type: string
+    x-enum-varnames:
+    - OrderCancelReasonUserRequested
+    - OrderCancelReasonTimeout
+  enum.OrderStatus:
+    enum:
+    - pending
+    - confirmed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - OrderStatusPending
+    - OrderStatusConfirmed
+    - OrderStatusCancelled
+  response.Code:
+    enum:
+    - OK
+    - NOT_FOUND
+    - CONFLICT
+    - BAD_REQUEST
+    - UNAUTHORIZED
+    - DATABASE_ERROR
+    - GATEWAY_ERROR
+    - INVALID_TOKEN
+    - EXPIRED_TOKEN
+    - INFLUENT_BALANCE
+    - FILE_ERROR
+    - FORBIDDEN
+    - QUOTA_EXCEEDED
+    - ASYNC_ERROR
+    - NOT_VERIFIED
+    - TOO_MANY_REQUESTS
+    - INSUFFICIENT_STOCK
+    - INVALID_ORDER_STATUS
+    - USER_ALREADY_ASSIGNED
+    - DEPARTMENT_NOT_FOUND
+    - NOT_DEPARTMENT_MEMBER
+    - INTERNAL_SERVER_ERROR
+    type: string
+    x-enum-varnames:
+    - CodeSuccess
+    - CodNotFound
+    - CodeConflict
+    - CodeBadRequest
+    - CodeUnauthorized
+    - CodeDatabaseError
+    - CodeGatewayError
+    - CodeInvalidToken
+    - CodeExpiredToken
+    - CodeInfluentBalance
+    - CodeFileError
+    - CodeForbidden
+    - CodeQuotaExceeded
+    - CodeAsyncError
+    - CodeNotVerified
+    - CodeTooManyRequests
+    - CodeInsufficientStock
+    - CodeInvalidOrderStatus
+    - CodeUserAlreadyAssigned
+    - CodeDepartmentNotFound
+    - CodeNotDepartmentMember
+    - CodeInternalServerError
+  response.Response:
+    properties:
+      code:
+        $ref: '#/definitions/response.Code'
+      message:
+        type: string
+      payload: {}
+      success:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  title: Mini Market API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a username and password and returns an access token.
+      parameters:
+      - description: Username and password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                payload:
+                  $ref: '#/definitions/dto.AuthOutput'
+              type: object
+        "400":
+          description: BAD_REQUEST — validation error
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: UNAUTHORIZED — invalid username or password
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user with a username and password and returns an
+        access token.
+      parameters:
+      - description: Username, password, and password confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                payload:
+                  $ref: '#/definitions/dto.AuthOutput'
+              type: object
+        "400":
+          description: BAD_REQUEST — validation error, e.g. password and confirm_password
+            don't match
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: CONFLICT — username is already taken
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Register
+      tags:
+      - Auth
+  /me/orders:
+    get:
+      description: Returns a paginated list of the authenticated caller's own orders,
+        newest first. The default page (page=1, default limit) is served from Redis
+        (per-user cache key); any other page/limit combination reads straight from
+        Postgres.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'payload is a paging envelope: {page, size, total, items[]entity.OrderEntity}'
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List my orders
+      tags:
+      - Orders
+  /orders:
+    get:
+      description: Returns a paginated list of the most recent orders across all users,
+        newest first. Admin-only. The default page (page=1, default limit) is served
+        from Redis; any other page/limit combination reads straight from Postgres.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'payload is a paging envelope: {page, size, total, items[]entity.OrderEntity}'
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: FORBIDDEN — admin role required
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List orders (admin)
+      tags:
+      - Orders
+    post:
+      consumes:
+      - application/json
+      description: Atomically reserves stock for each item and creates a pending order
+        that auto-cancels after 15 minutes if unpaid. Duplicate items in the same
+        request are aggregated by quantity. Resubmitting the same Idempotency-Key
+        returns the original order instead of reserving stock again.
+      parameters:
+      - description: Client-generated key, unique per order attempt
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Order items (product_id, quantity)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateOrderInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                payload:
+                  $ref: '#/definitions/entity.OrderEntity'
+              type: object
+        "400":
+          description: BAD_REQUEST — validation error or missing Idempotency-Key header
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: NOT_FOUND — one or more product ids do not exist
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: INSUFFICIENT_STOCK — not enough stock for one or more products
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create an order
+      tags:
+      - Orders
+  /orders/{id}:
+    get:
+      description: Returns an order with its items and current status.
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                payload:
+                  $ref: '#/definitions/entity.OrderEntity'
+              type: object
+        "400":
+          description: BAD_REQUEST — invalid id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: FORBIDDEN — order belongs to another user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: NOT_FOUND — order does not exist
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get an order by ID
+      tags:
+      - Orders
+  /orders/{id}/cancel:
+    post:
+      description: Cancels a pending order and releases its reserved stock. Uses the
+        same use case as the 15-minute auto-cancel background job.
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: BAD_REQUEST — invalid id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: FORBIDDEN — order belongs to another user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: NOT_FOUND — order does not exist
+          schema:
+            $ref: '#/definitions/response.Response'
+        "422":
+          description: INVALID_ORDER_STATUS — order is not pending
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Cancel an order
+      tags:
+      - Orders
+  /orders/{id}/confirm:
+    post:
+      description: Confirms a pending order, standing in for a payment-captured webhook
+        (no external payment provider is in scope). Admin-only.
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: BAD_REQUEST — invalid id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: FORBIDDEN — admin role required
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: NOT_FOUND — order does not exist
+          schema:
+            $ref: '#/definitions/response.Response'
+        "422":
+          description: INVALID_ORDER_STATUS — order is not pending
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Confirm an order (admin)
+      tags:
+      - Orders
+  /products:
+    get:
+      description: Returns a paginated product list, ordered by id. The default page
+        (page=1, default limit) is served from Redis; any other page/limit combination
+        reads straight from Postgres.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'payload is a paging envelope: {page, size, total, items[]entity.ProductEntity}'
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List products
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      description: Creates a product with the given name, price, and initial stock
+        quantity. Admin-only.
+      parameters:
+      - description: Product name, price, and stock quantity
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateProductInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                payload:
+                  $ref: '#/definitions/entity.ProductEntity'
+              type: object
+        "400":
+          description: BAD_REQUEST — validation error
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: UNAUTHORIZED — missing or invalid token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: FORBIDDEN — admin role required
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a product (admin)
+      tags:
+      - Products
+  /products/{id}:
+    get:
+      description: Returns a single product. Cached in Redis (cache-aside, invalidated
+        on stock-changing writes).
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                payload:
+                  $ref: '#/definitions/entity.ProductEntity'
+              type: object
+        "400":
+          description: BAD_REQUEST — invalid id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: NOT_FOUND — product does not exist
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a product by ID
+      tags:
+      - Products
+securityDefinitions:
+  BasicAuth:
+    type: basic
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
