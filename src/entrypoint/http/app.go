@@ -63,8 +63,7 @@ func (this *App) initGroups() {
 	this.productGroup.RegisterRoutes(api.Group("/products"))
 	this.orderGroup.RegisterRoutes(api.Group("/orders"))
 	this.authGroup.RegisterRoutes(api.Group("/auth"))
-
-	this.meGroup.RegisterRoutes(this.group("/me"))
+	this.meGroup.RegisterRoutes(api.Group("/me"))
 }
 
 func (this *App) group(prefix string, mws ...httpport.Middleware) httpport.Group {

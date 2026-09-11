@@ -27,8 +27,7 @@ type Env struct {
 	CorsAllowCredentials bool     `env:"CORS_ALLOW_CREDENTIALS,required"`
 	CorsAllowOrigin      []string `env:"CORS_ALLOW_ORIGIN,required"`
 
-	JwtSecret  string `env:"JWT_SECRET,required"`
-	HmacSecret string `env:"HMAC_SECRET,required"`
+	JwtSecret string `env:"JWT_SECRET,required"`
 
 	AccessTimeExpireMinutes   int64 `env:"ACCESS_EXPIRE_MINUTES,required"`
 	RefreshTokenExpireMinutes int64 `env:"REFRESH_EXPIRE_MINUTES,required"`

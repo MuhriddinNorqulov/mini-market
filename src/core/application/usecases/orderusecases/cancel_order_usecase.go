@@ -35,6 +35,9 @@ func (this *CancelOrderUseCase) Invoke(ctx context.Context, caller *entity.UserE
 	err := this.atomic.Transaction(func(tx unitofwork.Tx) error {
 		o, err := this.orderRepo.GetForUpdateTx(ctx, tx, id)
 		if err != nil {
+			if response.IsErrorCode(err, response.CodNotFound) {
+				return response.NewResponse(response.CodNotFound, false, nil, "order not found")
+			}
 			return err
 		}
 		if o.UserID != caller.ID && caller.Role != enum.RoleAdmin {

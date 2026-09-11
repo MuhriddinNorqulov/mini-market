@@ -23,6 +23,9 @@ func (this *ConfirmOrderUseCase) Invoke(ctx context.Context, id uint) error {
 	return this.atomic.Transaction(func(tx unitofwork.Tx) error {
 		order, err := this.orderRepo.GetForUpdateTx(ctx, tx, id)
 		if err != nil {
+			if response.IsErrorCode(err, response.CodNotFound) {
+				return response.NewResponse(response.CodNotFound, false, nil, "order not found")
+			}
 			return err
 		}
 		if order.Status != enum.OrderStatusPending {

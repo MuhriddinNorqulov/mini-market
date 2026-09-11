@@ -20,7 +20,3 @@ func (this *ConfigAdapter) GetAccessTokenExpireMinutes() int64 {
 func (this *ConfigAdapter) GetRefreshTokenExpireMinutes() int64 {
 	return this.env.RefreshTokenExpireMinutes
 }
-
-func (this *ConfigAdapter) GetHmacSecret() string {
-	return this.env.HmacSecret
-}

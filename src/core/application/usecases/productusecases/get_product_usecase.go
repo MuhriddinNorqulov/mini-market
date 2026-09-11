@@ -3,6 +3,7 @@ package productusecases
 import (
 	"context"
 
+	"mini-market/src/core/application/response"
 	"mini-market/src/core/domain/entity"
 	"mini-market/src/core/domain/ports/cache"
 	"mini-market/src/core/domain/ports/repository"
@@ -25,6 +26,9 @@ func (this *GetProductUseCase) Invoke(ctx context.Context, id uint) (*entity.Pro
 
 	product, err := this.productRepo.GetByID(ctx, id)
 	if err != nil {
+		if response.IsErrorCode(err, response.CodNotFound) {
+			return nil, response.NewResponse(response.CodNotFound, false, nil, "product not found")
+		}
 		return nil, err
 	}
 

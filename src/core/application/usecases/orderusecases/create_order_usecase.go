@@ -16,7 +16,7 @@ import (
 	"mini-market/src/core/domain/ports/unitofwork"
 )
 
-const orderExpiryDuration = 15 * time.Minute
+const orderExpiryDuration = 1 * time.Minute
 
 type CreateOrderUseCase struct {
 	orderRepo       repository.OrderRepository
