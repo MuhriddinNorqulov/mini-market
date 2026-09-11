@@ -113,3 +113,7 @@ go test ./test/concurrency/...
 
 Test (test/concurrency/order_stock_test.go) stock=10 bilan bitta product yaratadi, unga bir vaqtda 50 ta POST /orders yuboradi va 
 aynan 10tasi 201, 40tasi 409/422 qaytishini, oxirida stock_quantity ning aynan 0 ekanini tekshiradi. Faqat docker compose up qilingan bo'lishi kerak.
+
+## Baza sxemasi
+
+https://dbdiagram.io/d/6aa4150c36f99825646e94d7

@@ -1,0 +1,77 @@
+Enum order_status {
+  pending
+  confirmed
+  cancelled
+}
+
+Enum order_cancel_reason {
+  user_requested
+  timeout
+}
+
+Enum user_role {
+  USER
+  ADMIN
+  DEVELOPER
+}
+
+Table users {
+  id bigint [pk, increment]
+  username varchar(32) [unique, note: 'unique index: idx_users_username']
+  first_name varchar(64)
+  last_name varchar(64)
+  role user_role [not null, default: 'USER', note: 'app-level enum only, no DB CHECK constraint']
+  password varchar(255)
+  password_updated_at timestamp
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table products {
+  id bigint [pk, increment]
+  name varchar(255) [not null]
+  price bigint [not null]
+  stock_quantity bigint [not null]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table orders {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  idempotency_key varchar(64) [not null]
+  total_price bigint [not null]
+  status order_status [not null, default: 'pending', note: 'CHECK constraint: chk_orders_status']
+  cancel_reason order_cancel_reason [note: 'CHECK constraint: chk_orders_cancel_reason']
+  expires_at timestamp [not null]
+  completed_at timestamp
+  cancelled_at timestamp
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp
+
+  indexes {
+    (user_id, idempotency_key) [unique, name: 'idx_order_idempotency_key']
+  }
+}
+
+Table order_items {
+  id bigint [pk, increment]
+  order_id bigint [not null]
+  product_id bigint [not null]
+  quantity bigint [not null]
+  unit_price bigint [not null]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp
+
+  indexes {
+    (order_id, product_id) [unique, name: 'idx_order_items_order_id_product_id']
+  }
+}
+
+Ref: orders.user_id > users.id [delete: set null]
+Ref: order_items.order_id > orders.id [delete: set null]
+Ref: order_items.product_id > products.id [delete: set null]
