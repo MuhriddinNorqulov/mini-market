@@ -8,17 +8,29 @@ package wire
 
 import (
 	"mini-market/src/core/application/services"
+	"mini-market/src/core/application/tasks"
+	"mini-market/src/core/application/usecases/authusecases"
+	"mini-market/src/core/application/usecases/orderusecases"
+	"mini-market/src/core/application/usecases/productusecases"
 	"mini-market/src/entrypoint/asynctask"
+	handlers2 "mini-market/src/entrypoint/asynctask/handlers"
 	"mini-market/src/entrypoint/http"
+	"mini-market/src/entrypoint/http/groups"
+	"mini-market/src/entrypoint/http/handlers/auth"
+	"mini-market/src/entrypoint/http/handlers/order"
+	"mini-market/src/entrypoint/http/handlers/product"
 	"mini-market/src/entrypoint/http/interceptor/middlewares"
+	"mini-market/src/entrypoint/seed"
 	"mini-market/src/infrastructure/asyncq"
 	middlewares2 "mini-market/src/infrastructure/asyncq/middlewares"
+	"mini-market/src/infrastructure/db"
 	"mini-market/src/infrastructure/echohttp"
 	"mini-market/src/infrastructure/echohttp/defaults"
 	"mini-market/src/infrastructure/echohttp/defaults/handlers"
 	"mini-market/src/infrastructure/env"
 	"mini-market/src/infrastructure/logger"
 	"mini-market/src/infrastructure/notification"
+	"mini-market/src/infrastructure/persistence/repository"
 	"mini-market/src/infrastructure/redis"
 	"mini-market/src/infrastructure/security"
 	"mini-market/src/infrastructure/sentry"
@@ -34,7 +46,12 @@ func InitHttpApp() *http.App {
 	redisClientOpt := async.NewAsynqRedisClientOpt0(envEnv)
 	httpHandler := handlers.NewAsynqmonHandler(redisClientOpt)
 	developmentGroup := defaults.NewDevelopmentGroup(httpHandler)
-	developerUserBasicAuthMiddleware := defaults.NewDeveloperUserBasicAuthMiddleware(envEnv)
+	gormDB := db.NewGormDB(envEnv)
+	database := db.NewDatabase(gormDB)
+	baseRepository := repository.NewBaseRepository(database)
+	userRepository := repository.NewUserRepositoryImpl(baseRepository)
+	passwordHasher := security.NewBcryptAdapter()
+	developerUserBasicAuthMiddleware := defaults.NewDeveloperUserBasicAuthMiddleware(userRepository, passwordHasher)
 	role := _wireRoleValue
 	telemetryTelemetry := telemetry.NewTelemetry(envEnv, role)
 	client := sentry.NewClient(envEnv, role)
@@ -44,7 +61,7 @@ func InitHttpApp() *http.App {
 	consoleLogger := logger.NewConsoleLogger()
 	consoleLoggerMiddleware := defaults.NewConsoleLoggerMiddleware(consoleLogger)
 	errorRecorderMiddleware := defaults.NewErrorRecorderMiddleware()
-	httpServer := echohttp.NewEchoServerImpl(echo, envEnv, developmentGroup, developerUserBasicAuthMiddleware, recoveryMiddleware, httpLoggerMiddleware, consoleLoggerMiddleware, errorRecorderMiddleware)
+	httpServer := echohttp.NewEchoServerImpl(echo, envEnv, developmentGroup, developerUserBasicAuthMiddleware, recoveryMiddleware, httpLoggerMiddleware, consoleLoggerMiddleware, errorRecorderMiddleware, httpLogger, telemetryTelemetry, client)
 	jwtTokenProvider := security.NewJwtTokenAdapter(envEnv)
 	configProvider := env.NewConfigAdapter(envEnv)
 	userAuthTokenService := services.NewUserAuthTokenService(jwtTokenProvider, configProvider)
@@ -54,7 +71,43 @@ func InitHttpApp() *http.App {
 	responseMiddleware := middlewares.NewResponseMiddleware()
 	limiter := redis.NewRateLimiterImpl(redisClient)
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(limiter)
-	app := http.NewApp(httpServer, envEnv, jwtAuthMiddleware, responseMiddleware, rateLimitMiddleware, telemetryTelemetry, client, httpLogger)
+	productRepository := repository.NewProductRepositoryImpl(baseRepository)
+	productListCache := redis.NewProductListCacheImpl(redisClient)
+	createProductUseCase := productusecases.NewCreateProductUseCase(productRepository, productListCache)
+	createProductHandler := product.NewCreateProductHandler(createProductUseCase)
+	productCache := redis.NewProductCache(redisClient)
+	getProductUseCase := productusecases.NewGetProductUseCase(productRepository, productCache)
+	getProductHandler := product.NewGetProductHandler(getProductUseCase)
+	listProductsUseCase := productusecases.NewListProductsUseCase(productRepository, productListCache)
+	listProductsHandler := product.NewListProductsHandler(listProductsUseCase)
+	productGroup := groups.NewProductGroup(createProductHandler, getProductHandler, listProductsHandler)
+	orderRepository := repository.NewOrderRepositoryImpl(baseRepository)
+	atomic := db.NewAtomicTxImpl(database)
+	asynqClient := async.NewtAsynqClient(redisClientOpt)
+	taskPublisher := async.NewAsynqTaskPublisher(asynqClient)
+	orderAutoCancelTask := tasks.NewOrderAutoCancelTask(taskPublisher)
+	orderListCache := redis.NewOrderListCacheImpl(redisClient)
+	userOrderListCache := redis.NewUserOrderListCacheImpl(redisClient)
+	createOrderUseCase := orderusecases.NewCreateOrderUseCase(orderRepository, productRepository, atomic, orderAutoCancelTask, productCache, orderListCache, userOrderListCache)
+	createOrderHandler := order.NewCreateOrderHandler(createOrderUseCase)
+	getOrderUseCase := orderusecases.NewGetOrderUseCase(orderRepository)
+	getOrderHandler := order.NewGetOrderHandler(getOrderUseCase)
+	listOrdersUseCase := orderusecases.NewListOrdersUseCase(orderRepository, orderListCache)
+	listOrdersHandler := order.NewListOrdersHandler(listOrdersUseCase)
+	cancelOrderUseCase := orderusecases.NewCancelOrderUseCase(orderRepository, productRepository, atomic, productCache)
+	cancelOrderHandler := order.NewCancelOrderHandler(cancelOrderUseCase)
+	confirmOrderUseCase := orderusecases.NewConfirmOrderUseCase(orderRepository, atomic)
+	confirmOrderHandler := order.NewConfirmOrderHandler(confirmOrderUseCase)
+	orderGroup := groups.NewOrderGroup(createOrderHandler, getOrderHandler, listOrdersHandler, cancelOrderHandler, confirmOrderHandler)
+	registerUseCase := authusecases.NewRegisterUseCase(userRepository, passwordHasher, userAuthTokenService, atomic)
+	registerHandler := auth.NewRegisterHandler(registerUseCase)
+	loginUseCase := authusecases.NewLoginUseCase(userRepository, passwordHasher, userAuthTokenService)
+	loginHandler := auth.NewLoginHandler(loginUseCase)
+	authGroup := groups.NewAuthGroup(registerHandler, loginHandler)
+	listMyOrdersUseCase := orderusecases.NewListMyOrdersUseCase(orderRepository, userOrderListCache)
+	listMyOrdersHandler := order.NewListMyOrdersHandler(listMyOrdersUseCase)
+	meGroup := groups.NewMeGroup(listMyOrdersHandler)
+	app := http.NewApp(httpServer, jwtAuthMiddleware, responseMiddleware, rateLimitMiddleware, productGroup, orderGroup, authGroup, meGroup)
 	return app
 }
 
@@ -78,11 +131,36 @@ func InitAsyncApp() *asynctask.App {
 	alertNotifier := notification.NewNoopAlertNotifier()
 	taskAlertMiddleware := middlewares2.NewTaskAlertMiddleware(asyncContext, alertNotifier)
 	taskTraceMiddleware := middlewares2.NewTaskTraceMiddleware(asyncLogger)
-	asyncServer := async.NewAsynqServerImpl(server, serveMux, taskLogMiddleware, taskAlertMiddleware, taskTraceMiddleware)
-	app := asynctask.NewAsyncApp(asyncServer, telemetryTelemetry, client)
+	asyncServer := async.NewAsynqServerImpl(server, serveMux, taskLogMiddleware, taskAlertMiddleware, taskTraceMiddleware, telemetryTelemetry, client)
+	gormDB := db.NewGormDB(envEnv)
+	database := db.NewDatabase(gormDB)
+	baseRepository := repository.NewBaseRepository(database)
+	orderRepository := repository.NewOrderRepositoryImpl(baseRepository)
+	productRepository := repository.NewProductRepositoryImpl(baseRepository)
+	atomic := db.NewAtomicTxImpl(database)
+	redisClient := redis.NewRedisClient(envEnv)
+	productCache := redis.NewProductCache(redisClient)
+	cancelOrderUseCase := orderusecases.NewCancelOrderUseCase(orderRepository, productRepository, atomic, productCache)
+	orderAutoCancelHandler := handlers2.NewOrderAutoCancelHandler(cancelOrderUseCase)
+	app := asynctask.NewAsyncApp(asyncServer, orderAutoCancelHandler)
 	return app
 }
 
 var (
 	_wireTelemetryRoleValue = telemetry.RoleAsync
 )
+
+func InitSeedApp() *seed.App {
+	envEnv := env.NewEnv()
+	gormDB := db.NewGormDB(envEnv)
+	database := db.NewDatabase(gormDB)
+	baseRepository := repository.NewBaseRepository(database)
+	userRepository := repository.NewUserRepositoryImpl(baseRepository)
+	jwtTokenProvider := security.NewJwtTokenAdapter(envEnv)
+	configProvider := env.NewConfigAdapter(envEnv)
+	userAuthTokenService := services.NewUserAuthTokenService(jwtTokenProvider, configProvider)
+	atomic := db.NewAtomicTxImpl(database)
+	passwordHasher := security.NewBcryptAdapter()
+	app := seed.NewApp(userRepository, userAuthTokenService, atomic, passwordHasher)
+	return app
+}

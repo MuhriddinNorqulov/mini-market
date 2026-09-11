@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"mini-market/src/infrastructure/logredact"
 	"mini-market/src/infrastructure/sentry"
 	"mini-market/src/infrastructure/telemetry"
 
@@ -74,7 +73,7 @@ func responseBody(contentType string, body []byte) string {
 
 func redactBody(contentType string, body []byte) string {
 	if strings.Contains(strings.ToLower(contentType), "application/json") {
-		if redacted, ok := logredact.RedactJSON(body); ok {
+		if redacted, ok := RedactJSON(body); ok {
 			return redacted
 		}
 	}

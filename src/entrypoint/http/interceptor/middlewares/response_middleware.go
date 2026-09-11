@@ -43,12 +43,22 @@ func (this *ResponseMiddleware) codeToStatus(c response.Code) int {
 		return 401
 	case response.CodeExpiredToken:
 		return 401
+	case response.CodeInvalidToken:
+		return 401
+	case response.CodeForbidden:
+		return 403
+	case response.CodNotFound:
+		return 404
+	case response.CodeConflict:
+		return 409
+	case response.CodeInsufficientStock:
+		return 409
+	case response.CodeInvalidOrderStatus:
+		return 422
 	case response.CodeDatabaseError:
 		return 500
 	case response.CodeGatewayError:
 		return 500
-	case response.CodeInvalidToken:
-		return 401
 	}
 	return 200
 }

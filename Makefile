@@ -9,4 +9,3 @@ wire-build:
 docker-run.local:
 	@cd docker && docker compose -f docker-compose.local.yml --env-file ./../env/.env up -d
 
-.PHONY: generate-docs wire-build docker-run.local

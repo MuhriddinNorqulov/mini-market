@@ -8,6 +8,7 @@ import (
 type AsyncServer interface {
 	Init()
 	Run() error
+	Shutdown(ctx context.Context) error
 
 	Use(middlewares ...AsyncTaskMiddleware)
 	HandlerFunc(taskName enum.TaskType, handler AsyncTaskHandler)

@@ -4,15 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"mini-market/src/core/domain/ports/httpport"
 	"mini-market/src/infrastructure/echohttp/defaults"
 	"mini-market/src/infrastructure/echohttp/mapper"
 	"mini-market/src/infrastructure/env"
+	"mini-market/src/infrastructure/logger"
+	"mini-market/src/infrastructure/sentry"
+	"mini-market/src/infrastructure/telemetry"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.uber.org/zap"
 )
 
 // @inject
@@ -31,6 +37,9 @@ type EchoServerImpl struct {
 	httpLoggerMiddleware         *defaults.HttpLoggerMiddleware
 	consoleLoggerMiddleware      *defaults.ConsoleLoggerMiddleware
 	errorRecorderMiddleware      *defaults.ErrorRecorderMiddleware
+	logger                       *logger.HttpLogger
+	telemetry                    *telemetry.Telemetry
+	sentry                       *sentry.Client
 }
 
 // @inject
@@ -43,6 +52,9 @@ func NewEchoServerImpl(
 	httpLoggerMiddleware *defaults.HttpLoggerMiddleware,
 	consoleLoggerMiddleware *defaults.ConsoleLoggerMiddleware,
 	errorRecorderMiddleware *defaults.ErrorRecorderMiddleware,
+	log *logger.HttpLogger,
+	tel *telemetry.Telemetry,
+	sentryClient *sentry.Client,
 ) httpport.HTTPServer {
 	return &EchoServerImpl{
 		echo:                         echo,
@@ -53,6 +65,9 @@ func NewEchoServerImpl(
 		httpLoggerMiddleware:         httpLoggerMiddleware,
 		consoleLoggerMiddleware:      consoleLoggerMiddleware,
 		errorRecorderMiddleware:      errorRecorderMiddleware,
+		logger:                       log,
+		telemetry:                    tel,
+		sentry:                       sentryClient,
 	}
 }
 
@@ -64,14 +79,30 @@ func (this *EchoServerImpl) Use(middlewares ...httpport.Middleware) {
 func (this *EchoServerImpl) Run() error {
 	err := this.echo.Start(fmt.Sprintf(":%s", this.env.HttpPort))
 	if errors.Is(err, http.ErrServerClosed) {
-
 		return nil
+	}
+	if err != nil {
+		this.logger.Error("http server error", zap.Error(err))
 	}
 	return err
 }
 
 func (this *EchoServerImpl) Shutdown(ctx context.Context) error {
-	return this.echo.Shutdown(ctx)
+	err := this.echo.Shutdown(ctx)
+
+	telemetryCtx, telemetryCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer telemetryCancel()
+	if tErr := this.telemetry.Shutdown(telemetryCtx); tErr != nil {
+		log.Printf("[telemetry] shutdown: %v", tErr)
+	}
+
+	sentryCtx, sentryCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer sentryCancel()
+	if sErr := this.sentry.Shutdown(sentryCtx); sErr != nil {
+		log.Printf("[sentry] shutdown: %v", sErr)
+	}
+
+	return err
 }
 
 func (this *EchoServerImpl) Group(prefix string, middlewares ...httpport.Middleware) httpport.Group {

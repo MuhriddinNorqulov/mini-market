@@ -2,47 +2,37 @@ package asynctask
 
 import (
 	"context"
-	"log"
 	"time"
 
+	"mini-market/src/core/domain/entity/enum"
 	"mini-market/src/core/domain/ports/async"
-	"mini-market/src/infrastructure/sentry"
-	"mini-market/src/infrastructure/telemetry"
+	"mini-market/src/entrypoint/asynctask/handlers"
 )
 
 type App struct {
-	server    async.AsyncServer
-	telemetry *telemetry.Telemetry
-	sentry    *sentry.Client
+	server                 async.AsyncServer
+	orderAutoCancelHandler *handlers.OrderAutoCancelHandler
 }
 
 // @inject
 func NewAsyncApp(
 	server async.AsyncServer,
-	telemetry *telemetry.Telemetry,
-	sentry *sentry.Client,
+	orderAutoCancelHandler *handlers.OrderAutoCancelHandler,
 ) *App {
-	return &App{server: server, telemetry: telemetry, sentry: sentry}
+	return &App{server: server, orderAutoCancelHandler: orderAutoCancelHandler}
 }
 
 func (this *App) Init() {
 	this.server.Init()
+	this.server.HandlerFunc(enum.TaskTypeOrderAutoCancel, this.orderAutoCancelHandler)
 }
 
 func (this *App) Start() {
 	runErr := this.server.Run()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	if err := this.telemetry.Shutdown(shutdownCtx); err != nil {
-		log.Printf("[telemetry] shutdown: %v", err)
-	}
-
-	sentryCtx, sentryCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer sentryCancel()
-	if err := this.sentry.Shutdown(sentryCtx); err != nil {
-		log.Printf("[sentry] shutdown: %v", err)
-	}
+	_ = this.server.Shutdown(shutdownCtx)
 
 	if runErr != nil {
 		panic(runErr)

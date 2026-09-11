@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"mini-market/src/core/domain/ports/reqctx"
 	"mini-market/src/infrastructure/logger"
-	"mini-market/src/infrastructure/logredact"
 	"mini-market/src/infrastructure/sentry"
 	"mini-market/src/infrastructure/telemetry"
 	"net/http"
@@ -52,7 +51,7 @@ func (m *RecoveryMiddleware) Wrap(next echo.HandlerFunc) echo.HandlerFunc {
 					zap.String("trace_id", reqctx.GetTraceID(ctx)),
 					zap.String("method", req.Method),
 					zap.String("path", req.URL.Path),
-					zap.String("query", logredact.SanitizeQuery(req.URL.RawQuery)),
+					zap.String("query", logger.SanitizeQuery(req.URL.RawQuery)),
 					zap.String("ip", c.RealIP()),
 					zap.String("user_agent", req.UserAgent()),
 					zap.Int("status", http.StatusInternalServerError),

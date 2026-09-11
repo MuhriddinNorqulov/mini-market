@@ -4,15 +4,25 @@ package wire
 import (
 	"github.com/google/wire"
 	services "mini-market/src/core/application/services"
+	tasks "mini-market/src/core/application/tasks"
+	authusecases "mini-market/src/core/application/usecases/authusecases"
+	orderusecases "mini-market/src/core/application/usecases/orderusecases"
+	productusecases "mini-market/src/core/application/usecases/productusecases"
 	asynctask "mini-market/src/entrypoint/asynctask"
+	handlers "mini-market/src/entrypoint/asynctask/handlers"
 	http "mini-market/src/entrypoint/http"
+	groups "mini-market/src/entrypoint/http/groups"
+	auth "mini-market/src/entrypoint/http/handlers/auth"
+	order "mini-market/src/entrypoint/http/handlers/order"
+	product "mini-market/src/entrypoint/http/handlers/product"
 	middlewares "mini-market/src/entrypoint/http/interceptor/middlewares"
+	seed "mini-market/src/entrypoint/seed"
 	asyncq "mini-market/src/infrastructure/asyncq"
 	middlewares2 "mini-market/src/infrastructure/asyncq/middlewares"
 	db "mini-market/src/infrastructure/db"
 	echohttp "mini-market/src/infrastructure/echohttp"
 	defaults "mini-market/src/infrastructure/echohttp/defaults"
-	handlers "mini-market/src/infrastructure/echohttp/defaults/handlers"
+	handlers2 "mini-market/src/infrastructure/echohttp/defaults/handlers"
 	env "mini-market/src/infrastructure/env"
 	logger "mini-market/src/infrastructure/logger"
 	notification "mini-market/src/infrastructure/notification"
@@ -25,11 +35,40 @@ import (
 
 var ProviderSet = wire.NewSet(
 	services.NewUserAuthTokenService,
+	tasks.NewOrderAutoCancelTask,
+	authusecases.NewLoginUseCase,
+	authusecases.NewRegisterUseCase,
+	orderusecases.NewCancelOrderUseCase,
+	orderusecases.NewConfirmOrderUseCase,
+	orderusecases.NewCreateOrderUseCase,
+	orderusecases.NewGetOrderUseCase,
+	orderusecases.NewListMyOrdersUseCase,
+	orderusecases.NewListOrdersUseCase,
+	productusecases.NewCreateProductUseCase,
+	productusecases.NewGetProductUseCase,
+	productusecases.NewListProductsUseCase,
 	asynctask.NewAsyncApp,
+	handlers.NewOrderAutoCancelHandler,
 	http.NewApp,
+	groups.NewAuthGroup,
+	groups.NewMeGroup,
+	groups.NewOrderGroup,
+	groups.NewProductGroup,
+	auth.NewLoginHandler,
+	auth.NewRegisterHandler,
+	order.NewCancelOrderHandler,
+	order.NewConfirmOrderHandler,
+	order.NewCreateOrderHandler,
+	order.NewGetOrderHandler,
+	order.NewListMyOrdersHandler,
+	order.NewListOrdersHandler,
+	product.NewCreateProductHandler,
+	product.NewGetProductHandler,
+	product.NewListProductsHandler,
 	middlewares.NewJwtAuthMiddleware,
 	middlewares.NewRateLimitMiddleware,
 	middlewares.NewResponseMiddleware,
+	seed.NewApp,
 	asyncq.NewAsyncContextImpl,
 	asyncq.NewAsynqConfig,
 	asyncq.NewAsynqInspector,
@@ -54,7 +93,7 @@ var ProviderSet = wire.NewSet(
 	defaults.NewHttpLoggerMiddleware,
 	defaults.NewRecoveryMiddleware,
 	defaults.NewRequestValidator,
-	handlers.NewAsynqmonHandler,
+	handlers2.NewAsynqmonHandler,
 	env.NewConfigAdapter,
 	env.NewEnv,
 	logger.NewAsyncLogger,
@@ -62,12 +101,17 @@ var ProviderSet = wire.NewSet(
 	logger.NewGatewayLogger,
 	logger.NewHttpLogger,
 	notification.NewNoopAlertNotifier,
-	repository.NewAuthSessionRepositoryImpl,
 	repository.NewBaseRepository,
+	repository.NewOrderRepositoryImpl,
+	repository.NewProductRepositoryImpl,
 	repository.NewUserRepositoryImpl,
+	redis.NewOrderListCacheImpl,
+	redis.NewProductCache,
+	redis.NewProductListCacheImpl,
 	redis.NewRateLimiterImpl,
 	redis.NewRedisClient,
 	redis.NewSessionDenylistImpl,
+	redis.NewUserOrderListCacheImpl,
 	security.NewBcryptAdapter,
 	security.NewJwtTokenAdapter,
 	sentry.NewClient,

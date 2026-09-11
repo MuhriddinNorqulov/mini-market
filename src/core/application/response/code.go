@@ -21,6 +21,9 @@ const (
 	CodeNotVerified     Code = "NOT_VERIFIED"
 	CodeTooManyRequests Code = "TOO_MANY_REQUESTS"
 
+	CodeInsufficientStock  Code = "INSUFFICIENT_STOCK"
+	CodeInvalidOrderStatus Code = "INVALID_ORDER_STATUS"
+
 	CodeUserAlreadyAssigned Code = "USER_ALREADY_ASSIGNED"
 	CodeDepartmentNotFound  Code = "DEPARTMENT_NOT_FOUND"
 	CodeNotDepartmentMember Code = "NOT_DEPARTMENT_MEMBER"

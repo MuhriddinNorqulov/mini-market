@@ -33,8 +33,12 @@ type Env struct {
 	AccessTimeExpireMinutes   int64 `env:"ACCESS_EXPIRE_MINUTES,required"`
 	RefreshTokenExpireMinutes int64 `env:"REFRESH_EXPIRE_MINUTES,required"`
 
-	DeveloperBasicAuthUsername string `env:"DEVELOPER_BASIC_AUTH_USERNAME,required"`
-	DeveloperBasicAuthPassword string `env:"DEVELOPER_BASIC_AUTH_PASSWORD,required"`
+	DefaultAdminUsername     string `env:"DEFAULT_ADMIN_USERNAME,required"`
+	DefaultAdminPassword     string `env:"DEFAULT_ADMIN_PASSWORD,required"`
+	DefaultUserUsername      string `env:"DEFAULT_USER_USERNAME,required"`
+	DefaultUserPassword      string `env:"DEFAULT_USER_PASSWORD,required"`
+	DefaultDeveloperUsername string `env:"DEFAULT_DEVELOPER_USERNAME,required"`
+	DefaultDeveloperPassword string `env:"DEFAULT_DEVELOPER_PASSWORD,required"`
 
 	OtelEnabled               bool    `env:"OTEL_ENABLED" envDefault:"false"`
 	OtelEndpoint              string  `env:"OTEL_OTLP_GRPC_ENDPOINT" envDefault:""`
@@ -71,7 +75,7 @@ func parseEnv() *Env {
 
 func loadEnv() {
 	if os.Getenv("CONTAINER_MODE") != "1" {
-		_ = godotenv.Load("env/.env.local")
-		_ = godotenv.Load("env/.env")
+		_ = godotenv.Load(".env.local")
+		_ = godotenv.Load(".env")
 	}
 }

@@ -24,15 +24,6 @@ const (
 	LoginFailureRateLimited   LoginFailureReason = "RATE_LIMITED"
 )
 
-type SessionRevokeReason string
-
-const (
-	SessionRevokeLogout          SessionRevokeReason = "LOGOUT"
-	SessionRevokeLogoutAll       SessionRevokeReason = "LOGOUT_ALL"
-	SessionRevokeByUser          SessionRevokeReason = "REVOKED_BY_USER"
-	SessionRevokePasswordChanged SessionRevokeReason = "PASSWORD_CHANGED"
-)
-
 type AuthFlowScope string
 
 const (
