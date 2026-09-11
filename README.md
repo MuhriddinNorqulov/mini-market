@@ -95,6 +95,13 @@ GET /products/{id} uchun cache-aside pattern ishlatilgan: birinchi so'rovda Redi
 Keyingi so'rovlar TTL tugamaguncha to'g'ridan-to'g'ri redisdan olinadi. 
 stock_quantity har order yaratilganda o'zgaradi — shuning uchun stock update bo'lganda o'sha productning keshi darhol invalidate qilinadi.
 
+
+GET /api/products, GET /api/orders va GET /api/me/orders pagination qaytaradi. Faqat bitta holat keshlanadi: page=1 va default limit (20). Boshqa har qanday sahifa yoki limit qiymati bilan kelgan so'rov keshga umuman qaralmasdan, to'g'ridan-to'g'ri db dan o'qiladi.
+
+Har bir resurs uchun bitta versiyalangan kesh key ishlatiladi: product:list:v{n}, order:list:v{n} (admin uchun), order:list:user:{user_id}:v{n} (har bir user o'zining order ro'yxati uchun alohida). Yangi product yoki order yaratilganda versiya oshiriladi (INCR) — bu eski kesh ishlatilmasligi uchun, keyingi default-sahifa so'rovi db dan yangi ma'lumot bilan qayta keshlanadi. TTL 30 soniya — versiya oshirilmaganda  ham kesh uzoq saqlanmasligi uchun.
+
+Order statusi o'zgarishi (cancel/confirm) list keshini invalidate qilmaydi — bu ataylab shunday, chunki status o'zgarishi kam sodir bo'ladigan holat, va ro'yxat ko'rinishida 30 soniyagacha eski status ko'rinishi katta muammo emas.
+
 ### Background auto-cancel
 
 Order yaratilganda  15 daqiqadan keyin bajariladigan task schedule qilinadi. Job ishga tushganda order hali pending bo'lsa, uni cancel qiladi va stockni qaytaradi. 
