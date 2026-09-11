@@ -1,4 +1,4 @@
-package logredact
+package logger
 
 import (
 	"encoding/json"

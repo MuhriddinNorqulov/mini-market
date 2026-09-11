@@ -2,35 +2,23 @@ package mapper
 
 import (
 	"mini-market/src/core/domain/entity"
-	"mini-market/src/infrastructure/persistence/models"
+	"mini-market/src/core/domain/entity/enum"
 )
 
-func UserModelToEntity(it *models.UserModel) *entity.UserEntity {
-	return &entity.UserEntity{
-		ID:                 it.ID,
-		GoogleID:           it.GoogleID,
-		Email:              it.Email,
-		Picture:            it.Picture,
-		EmailVerified:      it.EmailVerified,
-		PhoneNumber:        it.PhoneNumber,
-		FirstName:          it.FirstName,
-		LastName:           it.LastName,
-		MiddleName:         it.MiddleName,
-		ProfileImageFileID: it.ProfileImageFileID,
-		Role:               it.Role,
-	}
+type UserRow struct {
+	ID        uint
+	Username  *string
+	FirstName string
+	LastName  *string
+	Role      enum.Role
 }
 
-func UserEntityToModel(it *entity.UserEntity) *models.UserModel {
-	return &models.UserModel{
-		GoogleID:           it.GoogleID,
-		Email:              it.Email,
-		Picture:            it.Picture,
-		EmailVerified:      it.EmailVerified,
-		PhoneNumber:        it.PhoneNumber,
-		FirstName:          it.FirstName,
-		LastName:           it.LastName,
-		MiddleName:         it.MiddleName,
-		ProfileImageFileID: it.ProfileImageFileID,
+func UserRowToEntity(r *UserRow) *entity.UserEntity {
+	return &entity.UserEntity{
+		ID:        r.ID,
+		Username:  r.Username,
+		FirstName: r.FirstName,
+		LastName:  r.LastName,
+		Role:      r.Role,
 	}
 }
